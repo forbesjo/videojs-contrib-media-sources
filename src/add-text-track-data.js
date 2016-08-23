@@ -66,11 +66,14 @@ const addTextTrackData = function(sourceHandler, captionArray, metadataArray) {
   if (metadataArray) {
     metadataArray.forEach(function(metadata) {
       let time = metadata.cueTime + this.timestampOffset;
+      let endTime = Number.isFinite(this.mediaSource_.duration) ?
+        this.mediaSource_.duration :
+        Number.MAX_VALUE;
 
       metadata.frames.forEach(function(frame) {
         let cue = new Cue(
             time,
-            time,
+            endTime,
             frame.value || frame.url || frame.data || '');
 
         cue.frame = frame;
@@ -79,6 +82,20 @@ const addTextTrackData = function(sourceHandler, captionArray, metadataArray) {
         this.metadataTrack_.addCue(cue);
       }, this);
     }, sourceHandler);
+
+    // update the metadata cues so that:
+    // - the end time of the current cue is the start time of the next
+    // - the last cue has an end time equal to the duration of the video
+    if (sourceHandler.metadataTrack_ && sourceHandler.metadataTrack_.cues) {
+      for (let i = 0, len = sourceHandler.metadataTrack_.cues.length; i < len - 1; i++) {
+        let currentCue = sourceHandler.metadataTrack_.cues[i];
+        let nextCue = sourceHandler.metadataTrack_.cues[i + 1];
+
+        if (currentCue.endTime !== nextCue.startTime) {
+          currentCue.endTime = nextCue.startTime;
+        }
+      }
+    }
   }
 };
 
